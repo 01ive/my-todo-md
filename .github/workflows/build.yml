@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout code
@@ -41,11 +43,7 @@ jobs:
 
     - name: Upload to release (if release triggered)
       if: github.event_name == 'release'
-      uses: actions/upload-release-asset@v1
+      run: gh release upload ${{ github.event.release.tag_name }} *.vsix
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./*.vsix
-        asset_name: my-todo-md-${{ github.event.release.tag_name }}.vsix
         asset_content_type: application/octet-stream
