@@ -1,13 +1,14 @@
 export interface Task {
     id: string;
     title: string;
-    status: 'todo' | 'done' | 'progress';
+    status: 'todo' | 'done' | 'standby';
     estimate?: string;
     tag?: string;
     assignee?: string;
     date?: string;
     line: number;
     description: string[];
+    priority?: number;
 }
 
 export interface Column {
@@ -57,16 +58,27 @@ export function parseMarkdown(content: string): Column[] {
             const assignee = assigneeMatch ? assigneeMatch[1] : undefined;
             remainingText = remainingText.replace(/@[^\s]+/, '').trim();
 
+            // Priorité (!, !!, !!!)
+            const priorityMatch = remainingText.match(/!{1,3}/);
+            let priority: number | undefined;
+
+            if (priorityMatch) {
+                priority = priorityMatch[0].length; // 1 à 3
+                remainingText = remainingText.replace(/!{1,3}/, '').trim();
+                // On pourrait stocker la priorité dans une propriété dédiée si besoin
+            }
+
             currentTask = {
                 id: Math.random().toString(36).substr(2, 9),
                 title: remainingText, // Ce qu'il reste est le titre
-                status: statusChar === 'x' ? 'done' : (statusChar === '/' ? 'progress' : 'todo'),
+                status: statusChar === 'x' ? 'done' : (statusChar === '/' ? 'standby' : 'todo'),
                 line: index,
                 estimate,
                 tag,
                 assignee,
                 date,
-                description: []
+                description: [],
+                priority
             };
             currentColumn.tasks.push(currentTask);
         }

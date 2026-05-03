@@ -23,15 +23,31 @@ export function activate(context: vscode.ExtensionContext) {
                 // On utilise targetDocUri plutôt que activeTextEditor
                 const document = await vscode.workspace.openTextDocument(targetDocUri);
                 
+                let newText: string;
+                let lineIndex: number;
+                let lineText: string;
+
                 switch (message.command) {
                     case 'toggle':
-                        const lineIndex = message.line;
-                        const lineText = document.lineAt(lineIndex).text;
-                        let newText = lineText.includes('[ ]') ? lineText.replace('[ ]', '[x]') : lineText.replace('[x]', '[ ]');
+                        console.log('Toggle status for line:', message.line);
+                        lineIndex = message.line;
+                        lineText = document.lineAt(lineIndex).text;
+                        newText = lineText.includes('[x]') ? lineText.replace('[x]', '[ ]') : lineText.includes('[/]') ? lineText.replace('[/]', '[ ]') : lineText.replace('[ ]', '[x]'); // Toggle entre todo, done et standby
                         
                         const editToggle = new vscode.WorkspaceEdit();
                         editToggle.replace(targetDocUri, document.lineAt(lineIndex).range, newText);
                         await vscode.workspace.applyEdit(editToggle);
+                        break;
+                    
+                    case 'standby':
+                        console.log('Standby command received for line:', message.line);
+                        lineIndex = message.line;
+                        lineText = document.lineAt(lineIndex).text;
+                        newText = lineText.includes('[/]') ? lineText.replace('[/]', '[ ]') : lineText.includes('[x]') ? lineText.replace('[x]', '[/]') : lineText.replace('[ ]', '[/]');
+                        
+                        const editStandby = new vscode.WorkspaceEdit();
+                        editStandby.replace(targetDocUri, document.lineAt(lineIndex).range, newText);
+                        await vscode.workspace.applyEdit(editStandby);
                         break;
 
                     case 'move':
@@ -98,7 +114,8 @@ async function moveTask(docUri: vscode.Uri, lineIndex: number, targetColumn: str
 function getWebviewContent(columns: any[]) {
     const renderTasks = (tasks: any[]) => tasks.map((t: any) => `
         <div class="task ${t.status}" 
-             onclick="toggleTask(${t.line})" 
+             onclick="handleTaskClick(event, ${t.line})" 
+             oncontextmenu="handleTaskClick(event, ${t.line})"
              draggable="true" 
              ondragstart="drag(event)" 
              data-line="${t.line}">
@@ -106,7 +123,7 @@ function getWebviewContent(columns: any[]) {
             <div class="meta">
                 ${t.estimate ? `<span>⏱️ ${t.estimate}</span>` : ''}
                 ${t.tag ? `<span class="tag">#${t.tag}</span>` : ''}
-                ${t.assignee ? `<span class="assignee">👤 @${t.assignee}</span>` : ''}
+                ${t.assignee ? `<span class="assignee">@${t.assignee}</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -128,15 +145,17 @@ function getWebviewContent(columns: any[]) {
     <html>
     <head>
         <style>
-            body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; }
+            body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; }
             .column { flex: 1; background: #333; padding: 10px; border-radius: 8px; min-width: 250px; transition: background 0.2s; }
             .column.drag-over { background: #444; border: 2px dashed #007acc; }
             .task { background: #444; margin: 10px 0; padding: 10px; border-radius: 4px; border-left: 4px solid #007acc; cursor: grab; }
             .task:active { cursor: grabbing; }
             .task.done { opacity: 0.6; border-left-color: #4caf50; text-decoration: line-through; color: #888; }
+            .task.standby { opacity: 0.6; border-left-color: #fffb00; style: italic; }
             .tag { color: #ffab40; font-size: 0.8em; margin-left: 5px; }
             .meta { margin-top: 5px; font-size: 0.85em; opacity: 0.8; }
             .assignee { color: #4fc3f7; font-size: 0.8em; margin-left: 5px; font-weight: bold; }
+            .priority { color: #ff5252; font-size: 1.0em; margin-left: 5px; }
         </style>
     </head>
     <body>
@@ -147,9 +166,23 @@ function getWebviewContent(columns: any[]) {
         <script>
 			const vscode = acquireVsCodeApi();
 
+            function handleTaskClick(ev, line) {
+                ev.preventDefault(); // Empêche le menu contextuel de s'ouvrir
+                if (ev.type === 'click') {
+                    toggleTask(line);
+                } else if (ev.type === 'contextmenu') {
+                    standbyTask(line);
+                }
+            }
+
 			function toggleTask(line) {
 				// On évite que le clic ne soit déclenché pendant un drag
 				vscode.postMessage({ command: 'toggle', line: line });
+			}
+            
+            function standbyTask(line) {
+				// On évite que le clic ne soit déclenché pendant un drag
+				vscode.postMessage({ command: 'standby', line: line });
 			}
 
 			function allowDrop(ev) {
@@ -201,14 +234,17 @@ function getWebviewContent(columns: any[]) {
                     
                     col.tasks.forEach(t => {
                         const statusClass = t.status || 'todo';
-                        html += '<div class="task ' + statusClass + '" draggable="true" ondragstart="drag(event)" data-line="' + t.line + '" onclick="toggleTask(' + t.line + ')">';
+                        html += '<div class="task ' + statusClass + '" draggable="true" ondragstart="drag(event)" data-line="' + t.line + '" onclick="handleTaskClick(event, ' + t.line + ')" oncontextmenu="handleTaskClick(event, ' + t.line + ')">';
+                        if (t.priority === 1) html += '<span class="priority"> ' + '🟡 ' + '</span>';
+                        if (t.priority === 2) html += '<span class="priority"> ' + '🟠 ' + '</span>';
+                        if (t.priority === 3) html += '<span class="priority"> ' + '🔴 ' + '</span>';
                         html += '<strong>' + t.title + '</strong>';
                         
                         // --- AJOUT DE LA META ZONE ---
                         html += '<div class="meta">';
                         if (t.estimate) html += '<span>⏱️ ' + t.estimate + ' </span>';
                         if (t.tag) html += '<span class="tag">#' + t.tag + ' </span>';
-                        if (t.assignee) html += '<span class="assignee">👤 @' + t.assignee + '</span>';
+                        if (t.assignee) html += '<span class="assignee">@' + t.assignee + '</span>';
                         html += '</div>';
                         
                         html += '</div>';
