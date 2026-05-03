@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
                 let lineIndex: number;
                 let lineText: string;
 
-                switch (message.command) {
+                switch (message.command) { 
                     case 'toggle':
                         console.log('Toggle status for line:', message.line);
                         lineIndex = message.line;
@@ -54,6 +54,11 @@ export function activate(context: vscode.ExtensionContext) {
                         // On passe l'URI à moveTask pour qu'il soit autonome
                         await moveTask(targetDocUri, message.line, message.targetColumn);
                         break;
+
+                    case 'add':
+                        console.log('Add command received for column:', message.column);
+                        await addTask(targetDocUri, message.column);
+                        break;
                 }
             },
             undefined,
@@ -71,6 +76,35 @@ export function activate(context: vscode.ExtensionContext) {
     });
     
     context.subscriptions.push(disposable);
+}
+
+async function addTask(docUri: vscode.Uri, columnName: string) {
+    const taskTitle = await vscode.window.showInputBox({
+        prompt: `Titre de la nouvelle tâche pour « ${columnName} »`,
+        placeHolder: 'Exemple : Préparer la réunion',
+        validateInput: value => value.trim().length === 0 ? 'Le titre ne peut pas être vide' : undefined
+    });
+
+    if (!taskTitle) {
+        return;
+    }
+
+    const doc = await vscode.workspace.openTextDocument(docUri);
+    let insertLine = doc.lineCount;
+    let foundColumnLine = -1;
+
+    for (let i = 0; i < doc.lineCount; i++) {
+        const text = doc.lineAt(i).text;
+        if (text.startsWith('###') && text.replace('###', '').trim().toLowerCase() === columnName.toLowerCase()) {
+            foundColumnLine = i;
+            insertLine = i+1;
+            continue;
+        }
+    }
+
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(docUri, new vscode.Position(insertLine, 0), `- [ ] ${taskTitle}\n`);
+    await vscode.workspace.applyEdit(edit);
 }
 
 // Fonction Helper pour déplacer le texte
@@ -119,6 +153,9 @@ function getWebviewContent(columns: any[]) {
              draggable="true" 
              ondragstart="drag(event)" 
              data-line="${t.line}">
+            ${t.priority === 1 ? '<span class="priority"> 🟡 </span>' : ''}
+            ${t.priority === 2 ? '<span class="priority"> 🟠 </span>' : ''}
+            ${t.priority === 3 ? '<span class="priority"> 🔴 </span>' : ''}
             <strong>${t.title}</strong>
             <div class="meta">
                 ${t.estimate ? `<span>⏱️ ${t.estimate}</span>` : ''}
@@ -134,7 +171,10 @@ function getWebviewContent(columns: any[]) {
              ondragleave="dragLeave(event)"
              ondrop="drop(event)" 
              data-column="${col.name}">
-            <h2>${col.name}</h2>
+            <div class="column-header">
+                <h2>${col.name}</h2>
+                <button class="add-task" onclick="addTask('${col.name}')">➕</button>
+            </div>
             <div class="task-list">
                 ${renderTasks(col.tasks)}
             </div>
@@ -147,6 +187,9 @@ function getWebviewContent(columns: any[]) {
         <style>
             body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; }
             .column { flex: 1; background: #333; padding: 10px; border-radius: 8px; min-width: 250px; transition: background 0.2s; }
+            .column-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+            .add-task { background: #ffffff; color: white; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 0.9em; }
+            .add-task:hover { background: #005a9e; }
             .column.drag-over { background: #444; border: 2px dashed #007acc; }
             .task { background: #444; margin: 10px 0; padding: 10px; border-radius: 4px; border-left: 4px solid #007acc; cursor: grab; }
             .task:active { cursor: grabbing; }
@@ -184,6 +227,11 @@ function getWebviewContent(columns: any[]) {
 				// On évite que le clic ne soit déclenché pendant un drag
 				vscode.postMessage({ command: 'standby', line: line });
 			}
+
+            function addTask(column) {
+                console.log('Add task to column:', column);
+                vscode.postMessage({ command: 'add', column: column });
+            }
 
 			function allowDrop(ev) {
 				ev.preventDefault();
@@ -230,8 +278,9 @@ function getWebviewContent(columns: any[]) {
                 
                 columns.forEach(col => {
                     html += '<div class="column" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event)" data-column="' + col.name + '">';
-                    html += '<h2>' + col.name + '</h2>';
-                    
+                    <!-- html += '<div class="column-header"><h2>' + col.name + '</h2><button class="add-task" onclick="addTask(\'' + col.name.replace(/'/g, "\\'") + '\')">➕</button></div>'; -->
+                    html += '<div class="column-header"><h2>' + col.name + '</h2><button class="add-task" onclick="addTask(' + '\\'' + col.name + '\\'' + ')">➕</button></div>';
+
                     col.tasks.forEach(t => {
                         const statusClass = t.status || 'todo';
                         html += '<div class="task ' + statusClass + '" draggable="true" ondragstart="drag(event)" data-line="' + t.line + '" onclick="handleTaskClick(event, ' + t.line + ')" oncontextmenu="handleTaskClick(event, ' + t.line + ')">';
