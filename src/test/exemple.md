@@ -12,7 +12,9 @@ Site personnel version 2026 avec stack moderne.
 - [x] Intégrer le header responsive ~4h
 
 ### ⏳ Standby
-- [ ] Feedback client sur le logo #design @client
+- [ ] Feedback client sur le logo #design @client ~1d
+- [ ] Feedback client sur le logo #design @client ~2m
+- [ ] Feedback client sur le logo #design @client ~3h
 
 ### ✅ Done
 - [ ] Acheter le nom de domaine ~1h 2026-05-01

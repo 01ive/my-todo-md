@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { parseMarkdown, Task } from './parser';
+import { parseMarkdown, Task, Column } from './parser';
 
 // Fonction pour convertir une durée en minutes
 function parseDuration(estimateStr: string): number {
@@ -51,6 +51,32 @@ function calculateColumnTotal(tasks: Task[]): string {
     return formatDuration(totalMinutes);
 }
 
+function filterColumns(columns: Column[], filter: string): Column[] {
+    if (!filter || filter.trim() === '') {
+        return columns;
+    }
+
+    const lowerFilter = filter.trim().toLowerCase();
+    return columns
+        .map(col => ({
+            ...col,
+            tasks: col.tasks.filter(task => {
+                const values = [
+                    task.title,
+                    task.estimate,
+                    task.tag ? `#${task.tag}` : undefined,
+                    task.assignee ? `@${task.assignee}` : undefined,
+                    task.date,
+                    task.status,
+                    ...(task.description || [])
+                ].filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+                return values.some(value => value.toLowerCase().includes(lowerFilter));
+            })
+        }))
+        .filter(col => col.tasks.length > 0);
+}
+
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('my-todo-md.openKanban', () => {
         const editor = vscode.window.activeTextEditor;
@@ -58,6 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // On garde une référence fixe au document
         const targetDocUri = editor.document.uri;
+        let currentFilter = '';
 
         const panel = vscode.window.createWebviewPanel(
             'todoKanban',
@@ -66,7 +93,8 @@ export function activate(context: vscode.ExtensionContext) {
             { enableScripts: true }
         );
 
-        panel.webview.html = getWebviewContent(parseMarkdown(editor.document.getText()));
+        const initialData = parseMarkdown(editor.document.getText());
+        panel.webview.html = getWebviewContent(filterColumns(initialData, currentFilter));
 
         panel.webview.onDidReceiveMessage(
             async message => {
@@ -105,6 +133,30 @@ export function activate(context: vscode.ExtensionContext) {
                         await moveTask(targetDocUri, message.line, message.targetColumn);
                         break;
 
+                    case 'filter': {
+                        if (currentFilter !== '') {
+                            currentFilter = '';
+                            const filtered = filterColumns(parseMarkdown(document.getText()), currentFilter);
+                            panel.webview.postMessage({ command: 'update', data: filtered });
+                            break;
+                        }
+
+                        const filterText = await vscode.window.showInputBox({
+                            prompt: 'Filtrer les tâches contenant ce texte',
+                            placeHolder: 'Texte de recherche (laisser vide pour réinitialiser)',
+                            value: currentFilter
+                        });
+
+                        if (filterText === undefined) {
+                            break; // annulation : ne rien changer
+                        }
+
+                        currentFilter = filterText.trim();
+                        const filtered = filterColumns(parseMarkdown(document.getText()), currentFilter);
+                        panel.webview.postMessage({ command: 'update', data: filtered });
+                        break;
+                    }
+
                     case 'add':
                         console.log('Add command received for column:', message.column);
                         await addTask(targetDocUri, message.column);
@@ -118,7 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
         const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
             if (e.document === editor.document) {
                 const newData = parseMarkdown(e.document.getText());
-                panel.webview.postMessage({ command: 'update', data: newData });
+                panel.webview.postMessage({ command: 'update', data: filterColumns(newData, currentFilter) });
             }
         });
 
@@ -244,6 +296,9 @@ function getWebviewContent(columns: any[]) {
             .column-title { display: flex; align-items: center; gap: 15px; }
             .column-title h2 { margin: 0; }
             .column-total { font-size: 0.9em; opacity: 0.8; color: #aaa; white-space: nowrap; }
+            .toolbar { display: flex; width: 100%; justify-content: flex-end; margin-bottom: 10px; }
+            .filter-button { background: #ffffff; color: white; border: none; border-radius: 4px; padding: 8px 14px; cursor: pointer; font-size: 0.95em; }
+            .filter-button:hover { background: #005a9e; }
             .add-task { background: #ffffff; color: white; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 0.9em; }
             .add-task:hover { background: #005a9e; }
             .column.drag-over { background: #444; border: 2px dashed #007acc; }
@@ -258,6 +313,9 @@ function getWebviewContent(columns: any[]) {
         </style>
     </head>
     <body>
+        <div class="toolbar">
+            <button class="filter-button" onclick="filterTasks()">🔎</button>
+        </div>
         <div id="kanban-container" style="display: flex; gap: 20px; width: 100%;">
             ${columnsHtml}
         </div>
@@ -341,6 +399,10 @@ function getWebviewContent(columns: any[]) {
             function addTask(column) {
                 console.log('Add task to column:', column);
                 vscode.postMessage({ command: 'add', column: column });
+            }
+
+            function filterTasks() {
+                vscode.postMessage({ command: 'filter' });
             }
 
 			function allowDrop(ev) {
