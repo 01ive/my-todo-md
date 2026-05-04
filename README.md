@@ -41,7 +41,7 @@ My personal TODO list.
 
 ### View
 
-![View](docs/example.png)
+![View](https://github.com/01ive/my-todo-md/blob/main/images/example.png)
 
 ## Requirements
 
