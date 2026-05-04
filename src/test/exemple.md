@@ -2,9 +2,9 @@
 Site personnel version 2026 avec stack moderne.
 
 ### 📥 Backlog
-- [ ] Choisir la police de caractères #style ! 2026-05-15
-  - [ ] Tester Inter vs Roboto
-  - [ ] Vérifier la lisibilité sur mobile !!
+- [ ] Choisir la police de caractères #style ! 2026-05-15 ~30m
+  - [ ] Tester Inter vs Roboto ~30m
+  - [ ] Vérifier la lisibilité sur mobile !! ~30m
 
 ### ⚡ Today
 - [ ] Maquetter la page d'accueil #design @me ~2d
@@ -16,3 +16,4 @@ Site personnel version 2026 avec stack moderne.
 
 ### ✅ Done
 - [ ] Acheter le nom de domaine ~1h 2026-05-01
+

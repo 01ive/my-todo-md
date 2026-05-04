@@ -1,5 +1,55 @@
 import * as vscode from 'vscode';
-import { parseMarkdown } from './parser';
+import { parseMarkdown, Task } from './parser';
+
+// Fonction pour convertir une durée en minutes
+function parseDuration(estimateStr: string): number {
+    if (!estimateStr) return 0;
+    
+    const match = estimateStr.match(/^(\d+)([hmd])$/);
+    if (!match) return 0;
+    
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    
+    switch (unit) {
+        case 'h': return value * 60; // heures en minutes
+        case 'm': return value; // minutes
+        case 'd': return value * 8 * 60; // jours (8h) en minutes
+        default: return 0;
+    }
+}
+
+// Fonction pour formater une durée en minutes vers le format lisible
+function formatDuration(minutes: number): string {
+    if (minutes === 0) return '';
+    
+    let remaining = minutes;
+    let days = Math.floor(remaining / (8 * 60));
+    remaining -= days * 8 * 60;
+    
+    let hours = Math.floor(remaining / 60);
+    remaining -= hours * 60;
+    
+    let mins = remaining;
+    
+    let parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    
+    return parts.join(' ');
+}
+
+// Fonction pour calculer la durée totale d'une colonne
+function calculateColumnTotal(tasks: Task[]): string {
+    let totalMinutes = 0;
+    tasks.forEach(task => {
+        if (task.estimate) {
+            totalMinutes += parseDuration(task.estimate);
+        }
+    });
+    return formatDuration(totalMinutes);
+}
 
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('my-todo-md.openKanban', () => {
@@ -172,7 +222,10 @@ function getWebviewContent(columns: any[]) {
              ondrop="drop(event)" 
              data-column="${col.name}">
             <div class="column-header">
-                <h2>${col.name}</h2>
+                <div class="column-title">
+                    <h2>${col.name}</h2>
+                    <span class="column-total">${calculateColumnTotal(col.tasks) ? `⏱️ ${calculateColumnTotal(col.tasks)}` : ''}</span>
+                </div>
                 <button class="add-task" onclick="addTask('${col.name}')">➕</button>
             </div>
             <div class="task-list">
@@ -188,6 +241,9 @@ function getWebviewContent(columns: any[]) {
             body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; }
             .column { flex: 1; background: #333; padding: 10px; border-radius: 8px; min-width: 250px; transition: background 0.2s; }
             .column-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+            .column-title { display: flex; align-items: center; gap: 15px; }
+            .column-title h2 { margin: 0; }
+            .column-total { font-size: 0.9em; opacity: 0.8; color: #aaa; white-space: nowrap; }
             .add-task { background: #ffffff; color: white; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 0.9em; }
             .add-task:hover { background: #005a9e; }
             .column.drag-over { background: #444; border: 2px dashed #007acc; }
@@ -208,6 +264,60 @@ function getWebviewContent(columns: any[]) {
 
         <script>
 			const vscode = acquireVsCodeApi();
+
+            // Fonction pour convertir une durée en minutes
+            function parseDuration(estimateStr) {
+                console.log('Parsing duration:', estimateStr);
+                if (!estimateStr) return 0;
+                
+                const match = estimateStr.match(/^(\\d+)([hmd])$/);
+                if (!match) return 0;
+                
+                const value = parseInt(match[1], 10);
+                const unit = match[2];
+                
+                switch (unit) {
+                    case 'h': return value * 60; // heures en minutes
+                    case 'm': return value; // minutes
+                    case 'd': return value * 8 * 60; // jours (8h) en minutes
+                    default: return 0;
+                }
+            }
+
+            // Fonction pour formater une durée en minutes vers le format lisible
+            function formatDuration(minutes) {
+                console.log('Formatting duration:', minutes);
+                if (minutes === 0) return '';
+                
+                let remaining = minutes;
+                let days = Math.floor(remaining / (8 * 60));
+                remaining -= days * 8 * 60;
+                
+                let hours = Math.floor(remaining / 60);
+                remaining -= hours * 60;
+                
+                let mins = remaining;
+                
+                let parts = [];
+                if (days > 0) parts.push(days + 'd');
+                if (hours > 0) parts.push(hours + 'h');
+                if (mins > 0) parts.push(mins + 'm');
+                
+                return parts.join(' ');
+            }
+
+            // Fonction pour calculer la durée totale d'une colonne
+            function calculateColumnTotal(tasks) {
+                console.log('Calculating total for tasks:', tasks);
+                let totalMinutes = 0;
+                tasks.forEach(task => {
+                    if (task.estimate) {
+                        totalMinutes += parseDuration(task.estimate);
+                    }
+                });
+                console.log('Total minutes:', totalMinutes);
+                return formatDuration(totalMinutes);
+            }
 
             function handleTaskClick(ev, line) {
                 ev.preventDefault(); // Empêche le menu contextuel de s'ouvrir
@@ -278,8 +388,18 @@ function getWebviewContent(columns: any[]) {
                 
                 columns.forEach(col => {
                     html += '<div class="column" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event)" data-column="' + col.name + '">';
-                    <!-- html += '<div class="column-header"><h2>' + col.name + '</h2><button class="add-task" onclick="addTask(\'' + col.name.replace(/'/g, "\\'") + '\')">➕</button></div>'; -->
-                    html += '<div class="column-header"><h2>' + col.name + '</h2><button class="add-task" onclick="addTask(' + '\\'' + col.name + '\\'' + ')">➕</button></div>';
+                    
+                    const totalDuration = calculateColumnTotal(col.tasks);
+                    console.log('Total duration for column', col.name, ':', totalDuration);
+                    html += '<div class="column-header">';
+                    html += '<div class="column-title">';
+                    html += '<h2>' + col.name + '</h2>';
+                    if (totalDuration) {
+                        html += '<span class="column-total">⏱️ ' + totalDuration + '</span>';
+                    }
+                    html += '</div>';
+                    html += '<button class="add-task" onclick="addTask(' + '\\'' + col.name + '\\'' + ')">➕</button>';
+                    html += '</div>';
 
                     col.tasks.forEach(t => {
                         const statusClass = t.status || 'todo';
