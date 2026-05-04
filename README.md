@@ -18,19 +18,30 @@ A personal todo list manager for VS Code. Transform your Markdown files into int
 ### Example Format
 
 ```markdown
+# My TODO
+
+My personal TODO list.
+
 ### 📥 Backlog
-- [ ] Choisir la police de caractères #style 2026-05-15
-  - [ ] Tester Inter vs Roboto
-  - [ ] Vérifier la lisibilité sur mobile
+- [ ] Choose the font #style 2026-05-15
+  - [ ] Test Inter vs Roboto
+  - [ ] Check readability on mobile
 
 ### ⚡ Today  
-- [ ] Maquetter la page d'accueil #design @me ~2d
-- [x] Configurer le repo GitHub #dev @me 2026-05-03
-- [ ] Intégrer le header responsive ~4h
+- [ ] Mock up the home page #design @me ~2d
+- [x] Configure the GitHub repository #dev @me 2026-05-03
+- [ ] Integrate the responsive header ~4h
+
+### ⏳ Standby
+- [/] Organise meeting with designers #design @me ~5m
 
 ### ✅ Done
-- [x] Acheter le nom de domaine ~1h 2026-05-01
+- [x] Buy the domain name ~1h 2026-05-01
 ```
+
+### View
+
+![View](docs/example.png)
 
 ## Requirements
 
