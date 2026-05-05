@@ -3,9 +3,9 @@
 My personal TODO list.
 
 ### 📥 Backlog
-- [ ] Choose the font #style 2026-05-15
-  - [ ] Test Inter vs Roboto
-  - [ ] Check readability on mobile
+- [ ] Choose the font #style 2026-05-15 @me
+- [ ] Test Inter vs Roboto
+- [ ] Check readability on mobile
 
 ### ⚡ Today  
 - [ ] Mock up the home page #design @me ~2d

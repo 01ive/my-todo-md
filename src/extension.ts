@@ -263,6 +263,7 @@ function getWebviewContent(columns: any[]) {
                 ${t.estimate ? `<span>⏱️ ${t.estimate}</span>` : ''}
                 ${t.tag ? `<span class="tag">#${t.tag}</span>` : ''}
                 ${t.assignee ? `<span class="assignee">@${t.assignee}</span>` : ''}
+                ${t.date ? `<span class="date">📅 ${t.date}</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -307,6 +308,7 @@ function getWebviewContent(columns: any[]) {
             .task.done { opacity: 0.6; border-left-color: #4caf50; text-decoration: line-through; color: #888; }
             .task.standby { opacity: 0.6; border-left-color: #fffb00; style: italic; }
             .tag { color: #ffab40; font-size: 0.8em; margin-left: 5px; }
+            .date { color: #81c784; font-size: 0.8em; margin-left: 5px; }
             .meta { margin-top: 5px; font-size: 0.85em; opacity: 0.8; }
             .assignee { color: #4fc3f7; font-size: 0.8em; margin-left: 5px; font-weight: bold; }
             .priority { color: #ff5252; font-size: 1.0em; margin-left: 5px; }
@@ -476,6 +478,7 @@ function getWebviewContent(columns: any[]) {
                         if (t.estimate) html += '<span>⏱️ ' + t.estimate + ' </span>';
                         if (t.tag) html += '<span class="tag">#' + t.tag + ' </span>';
                         if (t.assignee) html += '<span class="assignee">@' + t.assignee + '</span>';
+                        if (t.date) html += '<span class="date">📅 ' + t.date + '</span>';
                         html += '</div>';
                         
                         html += '</div>';

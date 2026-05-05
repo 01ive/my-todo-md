@@ -2,7 +2,7 @@
   "name": "my-todo-md",
   "displayName": "my-todo.md",
   "description": "Personnal todo list management.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "01ive",
   "repository": {
     "type": "git",

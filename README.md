@@ -41,7 +41,7 @@ My personal TODO list.
 
 ### View
 
-![View](https://github.com/01ive/my-todo-md/blob/main/images/example.png)
+![View](./images/example.png)
 
 ## Requirements
 
@@ -81,6 +81,20 @@ Initial release of **my-todo.md**:
 - 🔄 Real-time synchronization between Markdown file and Kanban view
 - 🏷️ Support for tags, assignees, and durations
 - 📝 Parse and display nested sub-tasks
+
+### 0.0.2
+
+- ⏳ Manage right click to mark task as "pending"
+- ➕ Add button to create task on each column
+
+### 0.0.3
+
+- ⏱️ Add total task duration per column
+- 🔍 Add filtering by text
+
+### 0.0.4
+
+- 📅 Due date display on task
 
 ---
 
