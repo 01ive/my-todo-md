@@ -96,6 +96,10 @@ Initial release of **my-todo.md**:
 
 - 📅 Due date display on task
 
+### 0.0.5
+
+- ✏️ Allow to edit task using ctrl + click
+
 ---
 
 ## Following extension guidelines

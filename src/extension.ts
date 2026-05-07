@@ -161,6 +161,11 @@ export function activate(context: vscode.ExtensionContext) {
                         console.log('Add command received for column:', message.column);
                         await addTask(targetDocUri, message.column);
                         break;
+
+                    case 'edit':
+                        console.log('Edit command received for line:', message.line);
+                        await editTask(targetDocUri, message.line);
+                        break;
                 }
             },
             undefined,
@@ -206,6 +211,32 @@ async function addTask(docUri: vscode.Uri, columnName: string) {
 
     const edit = new vscode.WorkspaceEdit();
     edit.insert(docUri, new vscode.Position(insertLine, 0), `- [ ] ${taskTitle}\n`);
+    await vscode.workspace.applyEdit(edit);
+}
+
+async function editTask(docUri: vscode.Uri, lineIndex: number) {
+    const doc = await vscode.workspace.openTextDocument(docUri);
+    const lineText = doc.lineAt(lineIndex).text;
+
+    // Extraire le titre actuel de la tâche
+    const titleMatch = lineText.match(/^- \[[ x\/]\] (.*)$/);
+    const currentTitle = titleMatch ? titleMatch[1].trim() : '';
+
+    const newTitle = await vscode.window.showInputBox({
+        prompt: 'Modifier le titre de la tâche',
+        placeHolder: 'Nouveau titre',
+        value: currentTitle,
+        validateInput: value => value.trim().length === 0 ? 'Le titre ne peut pas être vide' : undefined
+    });
+
+    if (!newTitle || newTitle.trim() === currentTitle) {
+        return; // Annulation ou pas de changement
+    }
+
+    // Remplacer le titre dans la ligne
+    const newLineText = lineText.replace(currentTitle, newTitle.trim());
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(docUri, doc.lineAt(lineIndex).range, newLineText);
     await vscode.workspace.applyEdit(edit);
 }
 
@@ -381,10 +412,13 @@ function getWebviewContent(columns: any[]) {
 
             function handleTaskClick(ev, line) {
                 ev.preventDefault(); // Empêche le menu contextuel de s'ouvrir
-                if (ev.type === 'click') {
+                console.log('Task click event:', ev.type, 'ctrlKey:', ev.ctrlKey, 'on line:', line);
+                if (ev.type === 'click' && ev.ctrlKey === false) {
                     toggleTask(line);
                 } else if (ev.type === 'contextmenu') {
                     standbyTask(line);
+                } else if (ev.type === 'click' && ev.ctrlKey === true) {
+                    editTask(line);
                 }
             }
 
@@ -396,6 +430,11 @@ function getWebviewContent(columns: any[]) {
             function standbyTask(line) {
 				// On évite que le clic ne soit déclenché pendant un drag
 				vscode.postMessage({ command: 'standby', line: line });
+			}
+
+            function editTask(line) {
+				// Éditer la tâche
+				vscode.postMessage({ command: 'edit', line: line });
 			}
 
             function addTask(column) {
