@@ -100,6 +100,10 @@ Initial release of **my-todo.md**:
 
 - ✏️ Allow to edit task using ctrl + click
 
+### 0.0.6
+
+- 💾 Add autosave
+
 ---
 
 ## Following extension guidelines

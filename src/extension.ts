@@ -114,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
                         
                         const editToggle = new vscode.WorkspaceEdit();
                         editToggle.replace(targetDocUri, document.lineAt(lineIndex).range, newText);
-                        await vscode.workspace.applyEdit(editToggle);
+                        await applyEditAndSave(targetDocUri, editToggle);
                         break;
                     
                     case 'standby':
@@ -125,7 +125,7 @@ export function activate(context: vscode.ExtensionContext) {
                         
                         const editStandby = new vscode.WorkspaceEdit();
                         editStandby.replace(targetDocUri, document.lineAt(lineIndex).range, newText);
-                        await vscode.workspace.applyEdit(editStandby);
+                        await applyEditAndSave(targetDocUri, editStandby);
                         break;
 
                     case 'move':
@@ -185,6 +185,15 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 }
 
+// Fonction helper pour appliquer une édition et sauvegarder le fichier
+async function applyEditAndSave(docUri: vscode.Uri, edit: vscode.WorkspaceEdit) {
+    await vscode.workspace.applyEdit(edit);
+    
+    // Ouvrir le document et le sauvegarder
+    const document = await vscode.workspace.openTextDocument(docUri);
+    await document.save();
+}
+
 async function addTask(docUri: vscode.Uri, columnName: string) {
     const taskTitle = await vscode.window.showInputBox({
         prompt: `Titre de la nouvelle tâche pour « ${columnName} »`,
@@ -211,7 +220,7 @@ async function addTask(docUri: vscode.Uri, columnName: string) {
 
     const edit = new vscode.WorkspaceEdit();
     edit.insert(docUri, new vscode.Position(insertLine, 0), `- [ ] ${taskTitle}\n`);
-    await vscode.workspace.applyEdit(edit);
+    await applyEditAndSave(docUri, edit);
 }
 
 async function editTask(docUri: vscode.Uri, lineIndex: number) {
@@ -237,7 +246,7 @@ async function editTask(docUri: vscode.Uri, lineIndex: number) {
     const newLineText = lineText.replace(currentTitle, newTitle.trim());
     const edit = new vscode.WorkspaceEdit();
     edit.replace(docUri, doc.lineAt(lineIndex).range, newLineText);
-    await vscode.workspace.applyEdit(edit);
+    await applyEditAndSave(docUri, edit);
 }
 
 // Fonction Helper pour déplacer le texte
@@ -274,7 +283,7 @@ async function moveTask(docUri: vscode.Uri, lineIndex: number, targetColumn: str
         edit.insert(docUri, insertPos, taskContent);
         edit.delete(docUri, rangeToRemove);
         
-        await vscode.workspace.applyEdit(edit);
+        await applyEditAndSave(docUri, edit);
     }
 }
 
