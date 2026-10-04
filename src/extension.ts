@@ -380,6 +380,7 @@ function getWebviewContent(columns: any[]) {
         <script>
 			const vscode = acquireVsCodeApi();
             const collapsedColumns = new Set();
+            const manuallyToggledColumns = new Set();
 
             // Fonction pour convertir une durée en minutes
             function parseDuration(estimateStr) {
@@ -443,7 +444,8 @@ function getWebviewContent(columns: any[]) {
             function toggleColumn(title) {
                 const column = title.closest('.column');
                 const name = column.getAttribute('data-column');
-                if (collapsedColumns.has(name)) {
+                manuallyToggledColumns.add(name);
+                if (column.classList.contains('collapsed')) {
                     collapsedColumns.delete(name);
                 } else {
                     collapsedColumns.add(name);
@@ -452,8 +454,13 @@ function getWebviewContent(columns: any[]) {
             }
 
             function applyCollapsedColumns() {
-                document.querySelectorAll('.column').forEach(column => {
-                    const isCollapsed = collapsedColumns.has(column.getAttribute('data-column'));
+                const columns = document.querySelectorAll('.column');
+                columns.forEach((column, index) => {
+                    const name = column.getAttribute('data-column');
+                    const isDefaultCollapsed = index === 0 || index === columns.length - 1;
+                    const isCollapsed = manuallyToggledColumns.has(name)
+                        ? collapsedColumns.has(name)
+                        : isDefaultCollapsed;
                     column.classList.toggle('collapsed', isCollapsed);
                     const title = column.querySelector('.column-title h2');
                     title.setAttribute('aria-expanded', String(!isCollapsed));
