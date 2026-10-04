@@ -317,7 +317,7 @@ function getWebviewContent(columns: any[]) {
              data-column="${col.name}">
             <div class="column-header">
                 <div class="column-title">
-                    <h2>${col.name}</h2>
+                    <h2 role="button" tabindex="0" aria-expanded="true" onclick="toggleColumn(this)" onkeydown="handleColumnTitleKeydown(event, this)">${col.name}</h2>
                     <span class="column-total">${calculateColumnTotal(col.tasks) ? `⏱️ ${calculateColumnTotal(col.tasks)}` : ''}</span>
                 </div>
                 <button class="add-task" onclick="addTask('${col.name}')">➕</button>
@@ -332,11 +332,12 @@ function getWebviewContent(columns: any[]) {
     <html>
     <head>
         <style>
-            body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; }
-            .column { flex: 1; background: #333; padding: 10px; border-radius: 8px; min-width: 250px; transition: background 0.2s; }
+            body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; box-sizing: border-box; }
+            .column { box-sizing: border-box; flex: 1 1 0; background: #333; padding: 10px; border-radius: 8px; min-width: 0; transition: background 0.2s, flex-basis 0.2s; }
             .column-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
             .column-title { display: flex; align-items: center; gap: 15px; }
-            .column-title h2 { margin: 0; }
+            .column-title h2 { margin: 0; cursor: pointer; }
+            .column-title h2:focus-visible { outline: 2px solid #007acc; outline-offset: 3px; }
             .column-total { font-size: 0.9em; opacity: 0.8; color: #aaa; white-space: nowrap; }
             .toolbar { display: flex; width: 100%; justify-content: flex-end; margin-bottom: 10px; }
             .filter-button { background: #ffffff; color: white; border: none; border-radius: 4px; padding: 8px 14px; cursor: pointer; font-size: 0.95em; }
@@ -355,6 +356,17 @@ function getWebviewContent(columns: any[]) {
             .meta { margin-top: 5px; font-size: 0.85em; opacity: 0.8; }
             .assignee { color: #4fc3f7; font-size: 0.8em; margin-left: 5px; font-weight: bold; }
             .priority { color: #ff5252; font-size: 1.0em; margin-left: 5px; }
+            #kanban-container { flex-wrap: nowrap; align-items: stretch; min-width: 0; }
+            .column.collapsed { flex: 0 0 auto; width: max-content; }
+            .column.collapsed .column-header,
+            .column.collapsed .column-title { display: block; }
+            .column.collapsed .column-title h2 { white-space: nowrap; }
+            .column.collapsed .column-total,
+            .column.collapsed .add-task,
+            .column.collapsed .meta,
+            .column.collapsed .priority { display: none; }
+            .column.collapsed .task { min-width: 0; }
+            .column.collapsed .task strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         </style>
     </head>
     <body>
@@ -367,6 +379,7 @@ function getWebviewContent(columns: any[]) {
 
         <script>
 			const vscode = acquireVsCodeApi();
+            const collapsedColumns = new Set();
 
             // Fonction pour convertir une durée en minutes
             function parseDuration(estimateStr) {
@@ -417,6 +430,34 @@ function getWebviewContent(columns: any[]) {
                     const date = task.getAttribute('data-date');
                     task.classList.toggle('deadline-overdue', Boolean(date) && date < today);
                     task.classList.toggle('deadline-today', Boolean(date) && date === today);
+                });
+            }
+
+            function handleColumnTitleKeydown(event, title) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleColumn(title);
+                }
+            }
+
+            function toggleColumn(title) {
+                const column = title.closest('.column');
+                const name = column.getAttribute('data-column');
+                if (collapsedColumns.has(name)) {
+                    collapsedColumns.delete(name);
+                } else {
+                    collapsedColumns.add(name);
+                }
+                applyCollapsedColumns();
+            }
+
+            function applyCollapsedColumns() {
+                document.querySelectorAll('.column').forEach(column => {
+                    const isCollapsed = collapsedColumns.has(column.getAttribute('data-column'));
+                    column.classList.toggle('collapsed', isCollapsed);
+                    const title = column.querySelector('.column-title h2');
+                    title.setAttribute('aria-expanded', String(!isCollapsed));
+                    column.style.width = isCollapsed ? (title.scrollWidth + 20) + 'px' : '';
                 });
             }
 
@@ -519,7 +560,7 @@ function getWebviewContent(columns: any[]) {
                     console.log('Total duration for column', col.name, ':', totalDuration);
                     html += '<div class="column-header">';
                     html += '<div class="column-title">';
-                    html += '<h2>' + col.name + '</h2>';
+                    html += '<h2 role="button" tabindex="0" aria-expanded="true" onclick="toggleColumn(this)" onkeydown="handleColumnTitleKeydown(event, this)">' + col.name + '</h2>';
                     if (totalDuration) {
                         html += '<span class="column-total">⏱️ ' + totalDuration + '</span>';
                     }
@@ -549,9 +590,11 @@ function getWebviewContent(columns: any[]) {
                 });
                 
                 container.innerHTML = html;
+                applyCollapsedColumns();
                 updateDeadlineStyles();
             }
 
+            applyCollapsedColumns();
             updateDeadlineStyles();
             setInterval(updateDeadlineStyles, 60 * 1000);
         </script>
