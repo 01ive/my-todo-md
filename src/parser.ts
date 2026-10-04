@@ -6,6 +6,8 @@ export interface Task {
     tag?: string;
     assignee?: string;
     date?: string;
+    timeSpent?: string;
+    completion?: number;
     line: number;
     description: string[];
     priority?: number;
@@ -48,6 +50,24 @@ export function parseMarkdown(content: string): Column[] {
             const estimate = estimateMatch ? estimateMatch[1] : undefined;
             remainingText = remainingText.replace(/~[^\s]+/, '').trim();
 
+            // Temps passé ($2h) ou complétude ($25%)
+            const progressMatch = remainingText.match(/\$(\d+(?:[hmd]|%))(?=\s|$)/);
+            let timeSpent: string | undefined;
+            let completion: number | undefined;
+            if (progressMatch) {
+                const value = progressMatch[1];
+                if (value.endsWith('%')) {
+                    const percentage = Number.parseInt(value, 10);
+                    if (percentage <= 100) {
+                        completion = percentage;
+                        remainingText = remainingText.replace(progressMatch[0], '').trim();
+                    }
+                } else {
+                    timeSpent = value;
+                    remainingText = remainingText.replace(progressMatch[0], '').trim();
+                }
+            }
+
             // Tag (#tag)
             const tagMatch = remainingText.match(/#([^\s]+)/);
             const tag = tagMatch ? tagMatch[1] : undefined;
@@ -77,6 +97,8 @@ export function parseMarkdown(content: string): Column[] {
                 tag,
                 assignee,
                 date,
+                timeSpent,
+                completion,
                 description: [],
                 priority
             };

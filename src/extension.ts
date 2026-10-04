@@ -51,6 +51,20 @@ function calculateColumnTotal(tasks: Task[]): string {
     return formatDuration(totalMinutes);
 }
 
+function getTaskSpentMinutes(task: Task): number {
+    if (task.timeSpent) {
+        return parseDuration(task.timeSpent);
+    }
+    if (task.completion !== undefined && task.estimate) {
+        return Math.round(parseDuration(task.estimate) * task.completion / 100);
+    }
+    return 0;
+}
+
+function calculateColumnSpentTotal(tasks: Task[]): string {
+    return formatDuration(tasks.reduce((total, task) => total + getTaskSpentMinutes(task), 0));
+}
+
 function filterColumns(columns: Column[], filter: string): Column[] {
     if (!filter || filter.trim() === '') {
         return columns;
@@ -64,6 +78,8 @@ function filterColumns(columns: Column[], filter: string): Column[] {
                 const values = [
                     task.title,
                     task.estimate,
+                    task.timeSpent ? `$${task.timeSpent}` : undefined,
+                    task.completion !== undefined ? `$${task.completion}%` : undefined,
                     task.tag ? `#${task.tag}` : undefined,
                     task.assignee ? `@${task.assignee}` : undefined,
                     task.date,
@@ -302,6 +318,8 @@ function getWebviewContent(columns: any[]) {
             <strong>${t.title}</strong>
             <div class="meta">
                 ${t.estimate ? `<span>⏱️ ${t.estimate}</span>` : ''}
+                ${t.timeSpent ? `<span class="time-spent">⏳ ${t.timeSpent}</span>` : ''}
+                ${t.completion !== undefined ? `<span class="time-spent">⏳ ${t.completion}%${t.estimate ? ` · ${formatDuration(Math.round(parseDuration(t.estimate) * t.completion / 100))}` : ''}</span>` : ''}
                 ${t.tag ? `<span class="tag">#${t.tag}</span>` : ''}
                 ${t.assignee ? `<span class="assignee">@${t.assignee}</span>` : ''}
                 ${t.date ? `<span class="date">📅 ${t.date}</span>` : ''}
@@ -318,7 +336,7 @@ function getWebviewContent(columns: any[]) {
             <div class="column-header">
                 <div class="column-title">
                     <h2 role="button" tabindex="0" aria-expanded="true" onclick="toggleColumn(this)" onkeydown="handleColumnTitleKeydown(event, this)">${col.name}</h2>
-                    <span class="column-total">${calculateColumnTotal(col.tasks) ? `⏱️ ${calculateColumnTotal(col.tasks)}` : ''}</span>
+                    <span class="column-total">${calculateColumnTotal(col.tasks) ? `⏱️ ${calculateColumnTotal(col.tasks)}` : ''}${calculateColumnSpentTotal(col.tasks) ? ` <span class="spent-total">⏳ ${calculateColumnSpentTotal(col.tasks)}</span>` : ''}</span>
                 </div>
                 <button class="add-task" onclick="addTask('${col.name}')">➕</button>
             </div>
@@ -339,6 +357,7 @@ function getWebviewContent(columns: any[]) {
             .column-title h2 { margin: 0; cursor: pointer; }
             .column-title h2:focus-visible { outline: 2px solid #007acc; outline-offset: 3px; }
             .column-total { font-size: 0.9em; opacity: 0.8; color: #aaa; white-space: nowrap; }
+            .spent-total { margin-left: 8px; }
             .toolbar { display: flex; width: 100%; justify-content: flex-end; margin-bottom: 10px; }
             .filter-button { background: #ffffff; color: white; border: none; border-radius: 4px; padding: 8px 14px; cursor: pointer; font-size: 0.95em; }
             .filter-button:hover { background: #005a9e; }
@@ -421,6 +440,34 @@ function getWebviewContent(columns: any[]) {
                 if (mins > 0) parts.push(mins + 'm');
                 
                 return parts.join(' ');
+            }
+
+            function getTaskSpentMinutes(task) {
+                if (task.timeSpent) return parseDuration(task.timeSpent);
+                if (task.completion !== undefined && task.estimate) {
+                    return Math.round(parseDuration(task.estimate) * task.completion / 100);
+                }
+                return 0;
+            }
+
+            function calculateColumnSpentTotal(tasks) {
+                const totalMinutes = tasks.reduce((total, task) => total + getTaskSpentMinutes(task), 0);
+                return formatDuration(totalMinutes);
+            }
+
+            function renderColumnTotals(tasks) {
+                const estimated = calculateColumnTotal(tasks);
+                const spent = calculateColumnSpentTotal(tasks);
+                return (estimated ? '⏱️ ' + estimated : '') + (spent ? '<span class="spent-total">⏳ ' + spent + '</span>' : '');
+            }
+
+            function renderTaskSpent(task) {
+                if (task.timeSpent) return '<span class="time-spent">⏳ ' + task.timeSpent + '</span>';
+                if (task.completion !== undefined) {
+                    const calculated = task.estimate ? formatDuration(getTaskSpentMinutes(task)) : '';
+                    return '<span class="time-spent">⏳ ' + task.completion + '%' + (calculated ? ' · ' + calculated : '') + '</span>';
+                }
+                return '';
             }
 
             function updateDeadlineStyles() {
@@ -564,13 +611,11 @@ function getWebviewContent(columns: any[]) {
                     html += '<div class="column" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event)" data-column="' + col.name + '">';
                     
                     const totalDuration = calculateColumnTotal(col.tasks);
-                    console.log('Total duration for column', col.name, ':', totalDuration);
                     html += '<div class="column-header">';
                     html += '<div class="column-title">';
                     html += '<h2 role="button" tabindex="0" aria-expanded="true" onclick="toggleColumn(this)" onkeydown="handleColumnTitleKeydown(event, this)">' + col.name + '</h2>';
-                    if (totalDuration) {
-                        html += '<span class="column-total">⏱️ ' + totalDuration + '</span>';
-                    }
+                    const columnTotals = renderColumnTotals(col.tasks);
+                    if (columnTotals) html += '<span class="column-total">' + columnTotals + '</span>';
                     html += '</div>';
                     html += '<button class="add-task" onclick="addTask(' + '\\'' + col.name + '\\'' + ')">➕</button>';
                     html += '</div>';
@@ -586,6 +631,7 @@ function getWebviewContent(columns: any[]) {
                         // --- AJOUT DE LA META ZONE ---
                         html += '<div class="meta">';
                         if (t.estimate) html += '<span>⏱️ ' + t.estimate + ' </span>';
+                        html += renderTaskSpent(t);
                         if (t.tag) html += '<span class="tag">#' + t.tag + ' </span>';
                         if (t.assignee) html += '<span class="assignee">@' + t.assignee + '</span>';
                         if (t.date) html += '<span class="date">📅 ' + t.date + '</span>';
