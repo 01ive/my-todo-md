@@ -14,6 +14,7 @@ A personal todo list manager for VS Code. Transform your Markdown files into int
 - **🏷️ Smart Tagging** - Organize tasks with hashtags (`#tag`), assign users (`@user`), and set durations (`~2d`)
 - **🔄 Real-time Sync** - Changes in the Markdown file automatically update the Kanban view
 - **📅 Date Support** - Track task dates with the `YYYY-MM-DD` format for better organization
+- **⏳ Time spent** - Track time spent on task using duration `$2d` or percentage `$50%` of achievement
 
 ### Example Format
 
@@ -28,12 +29,12 @@ My personal TODO list.
   - [ ] Check readability on mobile
 
 ### ⚡ Today  
-- [ ] Mock up the home page #design @me ~2d
+- [ ] Mock up the home page #design @me ~2d $50%
 - [x] Configure the GitHub repository #dev @me 2026-05-03
 - [ ] Integrate the responsive header ~4h
 
 ### ⏳ Standby
-- [/] Organise meeting with designers #design @me ~5m
+- [/] Organise meeting with designers #design @me ~5m $2m
 
 ### ✅ Done
 - [x] Buy the domain name ~1h 2026-05-01
@@ -103,6 +104,11 @@ Initial release of **my-todo.md**:
 ### 0.0.6
 
 - 💾 Add autosave
+
+
+### 0.0.7
+
+- ⏳ Count time spent and reduce columns widths. Allow to place task in column.
 
 ---
 
