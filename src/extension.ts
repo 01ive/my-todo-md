@@ -476,8 +476,9 @@ function getWebviewContent(columns: any[]) {
 
                 document.querySelectorAll('.task[data-date]').forEach(task => {
                     const date = task.getAttribute('data-date');
-                    task.classList.toggle('deadline-overdue', Boolean(date) && date < today);
-                    task.classList.toggle('deadline-today', Boolean(date) && date === today);
+                    const isDone = task.classList.contains('done');
+                    task.classList.toggle('deadline-overdue', !isDone && Boolean(date) && date < today);
+                    task.classList.toggle('deadline-today', !isDone && Boolean(date) && date === today);
                 });
             }
 
