@@ -53,4 +53,21 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(new Date(ganttTasks[1].start).toISOString(), '2026-10-10T00:00:00.000Z');
 		assert.strictEqual(ganttTasks[0].end, ganttTasks[1].end);
 	});
+
+	test('marks past unfinished Gantt tasks as overdue', () => {
+		const columns = parseMarkdown([
+			'### Work',
+			'- [ ] Overdue task ~1d 2026-10-03',
+				'- [ ] Overdue without estimate 2026-10-02',
+			'- [ ] Due today ~1d 2026-10-04',
+			'- [x] Closed overdue task ~1d 2026-10-02'
+		].join('\n'));
+		const ganttTasks = buildGanttTasks(columns, new Date(2026, 9, 4, 12));
+
+			assert.deepStrictEqual(ganttTasks.map(task => task.title), ['Overdue task', 'Overdue without estimate', 'Due today']);
+		assert.strictEqual(ganttTasks[0].overdue, true);
+			assert.strictEqual(ganttTasks[1].overdue, true);
+			assert.strictEqual(ganttTasks[1].end - ganttTasks[1].start, 24 * 60 * 60 * 1000);
+			assert.strictEqual(ganttTasks[2].overdue, false);
+	});
 });

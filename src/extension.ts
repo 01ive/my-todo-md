@@ -67,18 +67,21 @@ function calculateColumnSpentTotal(tasks: Task[]): string {
 
 const ganttDayMs = 24 * 60 * 60 * 1000;
 
-export function buildGanttTasks(columns: Column[]): { title: string; start: number; end: number }[] {
+export function buildGanttTasks(columns: Column[], now = new Date()): { title: string; start: number; end: number; overdue: boolean }[] {
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+
     return columns.flatMap(column => column.tasks.flatMap(task => {
-        if (task.status === 'done' || !task.date || !task.estimate) {
+        if (task.status === 'done' || !task.date) {
             return [];
         }
 
         const dateMatch = task.date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        const durationDays = parseDuration(task.estimate) / (8 * 60);
-        if (!dateMatch || durationDays <= 0) {
+        if (!dateMatch) {
             return [];
         }
 
+        const estimatedDays = task.estimate ? parseDuration(task.estimate) / (8 * 60) : 0;
+        const durationDays = estimatedDays > 0 ? estimatedDays : 1;
         const end = Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])) + ganttDayMs;
         const dueDate = new Date(end - ganttDayMs);
         if (dueDate.getUTCFullYear() !== Number(dateMatch[1]) ||
@@ -87,7 +90,7 @@ export function buildGanttTasks(columns: Column[]): { title: string; start: numb
             return [];
         }
 
-        return [{ title: task.title, start: end - durationDays * ganttDayMs, end }];
+        return [{ title: task.title, start: end - durationDays * ganttDayMs, end, overdue: end - ganttDayMs < today }];
     }));
 }
 
@@ -104,7 +107,7 @@ function escapeHtml(value: string): string {
 function renderGanttHtml(columns: Column[]): string {
     const tasks = buildGanttTasks(columns);
     if (tasks.length === 0) {
-        return '<p class="gantt-empty">Aucune tâche avec date et durée estimée.</p>';
+        return '<p class="gantt-empty">Aucune tâche avec échéance.</p>';
     }
 
     const rangeStart = Math.floor(Math.min(...tasks.map(task => task.start)) / ganttDayMs) * ganttDayMs;
@@ -117,7 +120,9 @@ function renderGanttHtml(columns: Column[]): string {
     const rows = tasks.map(task => {
         const left = ((task.start - rangeStart) / (dayCount * ganttDayMs)) * 100;
         const width = ((task.end - task.start) / (dayCount * ganttDayMs)) * 100;
-        return `<div class="gantt-row"><div class="gantt-task-label" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</div><div class="gantt-track"><div class="gantt-bar" style="left:${left}%;width:${width}%"></div></div></div>`;
+        const dueDate = new Date(task.end - ganttDayMs).toISOString().slice(0, 10);
+        const barClass = task.overdue ? 'gantt-bar overdue' : 'gantt-bar';
+        return `<div class="gantt-row"><div class="gantt-task-label" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</div><div class="gantt-track"><div class="${barClass}" data-date="${dueDate}" style="left:${left}%;width:${width}%"></div></div></div>`;
     }).join('');
 
     return `<div class="gantt-chart" style="--day-count:${dayCount};--timeline-width:${dayCount * 44}px"><div class="gantt-row gantt-header"><div class="gantt-task-label">Tâche</div><div class="gantt-track">${dates}</div></div>${rows}</div>`;
@@ -430,6 +435,13 @@ function getWebviewContent(columns: any[]) {
             body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; box-sizing: border-box; }
             .gantt-section { width: 100%; min-width: 0; padding-bottom: 14px; border-bottom: 1px solid #555; }
             .gantt-section h2 { margin: 0 0 10px; font-size: 1.1em; }
+            .planning-toggle { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+            .planning-toggle::after { content: ' ▾'; color: #aaa; font-size: 0.8em; }
+            .planning-toggle[aria-expanded="false"]::after { content: ' ▸'; }
+            .planning-toggle:focus-visible { outline: 2px solid #007acc; outline-offset: 3px; }
+            .gantt-section.collapsed { padding-bottom: 0; border-bottom: 0; }
+            .gantt-section.collapsed h2 { margin-bottom: 0; }
+            .gantt-section.collapsed #gantt-container { display: none; }
             .gantt-scroll { overflow-x: auto; }
             .gantt-chart { min-width: max-content; }
             .gantt-row { display: grid; grid-template-columns: 220px var(--timeline-width); min-height: 34px; }
@@ -439,6 +451,7 @@ function getWebviewContent(columns: any[]) {
             .gantt-header .gantt-task-label { font-weight: bold; }
             .gantt-day { box-sizing: border-box; padding: 7px 0; border-left: 1px solid #444; text-align: center; }
             .gantt-bar { position: absolute; top: 7px; bottom: 7px; min-width: 3px; border-radius: 3px; background: #1685b8; }
+            .gantt-bar.overdue { background: #ff5252; }
             .gantt-empty { margin: 8px 0; color: #aaa; }
             .column { box-sizing: border-box; flex: 1 1 0; background: #333; padding: 10px; border-radius: 8px; min-width: 0; transition: background 0.2s, flex-basis 0.2s; }
             .column-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -479,7 +492,7 @@ function getWebviewContent(columns: any[]) {
     </head>
     <body>
         <section class="gantt-section">
-            <h2>Planning</h2>
+            <h2><button class="planning-toggle" type="button" aria-expanded="true" aria-controls="gantt-container" onclick="togglePlanning(this)">Planning</button></h2>
             <div id="gantt-container" class="gantt-scroll">${renderGanttHtml(columns)}</div>
         </section>
         <div class="toolbar">
@@ -712,6 +725,23 @@ function getWebviewContent(columns: any[]) {
 
             function updateGantt(html) {
                 document.getElementById('gantt-container').innerHTML = html;
+                updateGanttDeadlineStyles();
+            }
+
+            function togglePlanning(button) {
+                const isExpanded = button.getAttribute('aria-expanded') === 'true';
+                button.setAttribute('aria-expanded', String(!isExpanded));
+                button.closest('.gantt-section').classList.toggle('collapsed', isExpanded);
+            }
+
+            function updateGanttDeadlineStyles() {
+                const now = new Date();
+                const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+                document.querySelectorAll('.gantt-bar[data-date]').forEach(bar => {
+                    const date = bar.getAttribute('data-date');
+                    bar.classList.toggle('overdue', Boolean(date) && date < today);
+                });
             }
 
             function updateUI(columns) {
@@ -760,7 +790,11 @@ function getWebviewContent(columns: any[]) {
 
             applyCollapsedColumns();
             updateDeadlineStyles();
-            setInterval(updateDeadlineStyles, 60 * 1000);
+            updateGanttDeadlineStyles();
+            setInterval(() => {
+                updateDeadlineStyles();
+                updateGanttDeadlineStyles();
+            }, 60 * 1000);
         </script>
     </body>
     </html>`;
