@@ -3,15 +3,15 @@
 My personal TODO list.
 
 ### 📥 Backlog
-- [ ] Test Inter vs Roboto 2026-10-01
 
 ### Todo
-- [/] Check readability on mobile 2026-10-04 ~4h #metier $80%
-- [ ] Integrate the responsive header ~4h $2h
+- [ ] Integrate the responsive header ~4d $2h 2026-10-30
+- [ ] Check readability on mobile 2026-10-04 ~4h #metier $80%
+- [ ] Test Inter vs Roboto 2026-10-01
 
 ### ⚡ Today  
 - [ ] Configure the GitHub repository ~8h #dev @me 2026-10-04 $50%
-- [ ] Choose the font #style 2026-05-15 @me
+- [ ] Choose the font #style 2026-09-30 @me
 
 ### ⏳ Standby
 - [/] Organise meeting with designers #design @me ~5m

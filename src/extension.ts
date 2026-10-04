@@ -65,6 +65,64 @@ function calculateColumnSpentTotal(tasks: Task[]): string {
     return formatDuration(tasks.reduce((total, task) => total + getTaskSpentMinutes(task), 0));
 }
 
+const ganttDayMs = 24 * 60 * 60 * 1000;
+
+export function buildGanttTasks(columns: Column[]): { title: string; start: number; end: number }[] {
+    return columns.flatMap(column => column.tasks.flatMap(task => {
+        if (task.status === 'done' || !task.date || !task.estimate) {
+            return [];
+        }
+
+        const dateMatch = task.date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const durationDays = parseDuration(task.estimate) / (8 * 60);
+        if (!dateMatch || durationDays <= 0) {
+            return [];
+        }
+
+        const end = Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])) + ganttDayMs;
+        const dueDate = new Date(end - ganttDayMs);
+        if (dueDate.getUTCFullYear() !== Number(dateMatch[1]) ||
+            dueDate.getUTCMonth() !== Number(dateMatch[2]) - 1 ||
+            dueDate.getUTCDate() !== Number(dateMatch[3])) {
+            return [];
+        }
+
+        return [{ title: task.title, start: end - durationDays * ganttDayMs, end }];
+    }));
+}
+
+function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]!);
+}
+
+function renderGanttHtml(columns: Column[]): string {
+    const tasks = buildGanttTasks(columns);
+    if (tasks.length === 0) {
+        return '<p class="gantt-empty">Aucune tâche avec date et durée estimée.</p>';
+    }
+
+    const rangeStart = Math.floor(Math.min(...tasks.map(task => task.start)) / ganttDayMs) * ganttDayMs;
+    const rangeEnd = Math.max(...tasks.map(task => task.end));
+    const dayCount = Math.ceil((rangeEnd - rangeStart) / ganttDayMs);
+    const dates = Array.from({ length: dayCount }, (_, index) => {
+        const date = new Date(rangeStart + index * ganttDayMs);
+        return `<div class="gantt-day">${date.toISOString().slice(5, 10)}</div>`;
+    }).join('');
+    const rows = tasks.map(task => {
+        const left = ((task.start - rangeStart) / (dayCount * ganttDayMs)) * 100;
+        const width = ((task.end - task.start) / (dayCount * ganttDayMs)) * 100;
+        return `<div class="gantt-row"><div class="gantt-task-label" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</div><div class="gantt-track"><div class="gantt-bar" style="left:${left}%;width:${width}%"></div></div></div>`;
+    }).join('');
+
+    return `<div class="gantt-chart" style="--day-count:${dayCount};--timeline-width:${dayCount * 44}px"><div class="gantt-row gantt-header"><div class="gantt-task-label">Tâche</div><div class="gantt-track">${dates}</div></div>${rows}</div>`;
+}
+
 function filterColumns(columns: Column[], filter: string): Column[] {
     if (!filter || filter.trim() === '') {
         return columns;
@@ -153,7 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
                         if (currentFilter !== '') {
                             currentFilter = '';
                             const filtered = filterColumns(parseMarkdown(document.getText()), currentFilter);
-                            panel.webview.postMessage({ command: 'update', data: filtered });
+                            panel.webview.postMessage({ command: 'update', data: filtered, ganttHtml: renderGanttHtml(filtered) });
                             break;
                         }
 
@@ -169,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                         currentFilter = filterText.trim();
                         const filtered = filterColumns(parseMarkdown(document.getText()), currentFilter);
-                        panel.webview.postMessage({ command: 'update', data: filtered });
+                        panel.webview.postMessage({ command: 'update', data: filtered, ganttHtml: renderGanttHtml(filtered) });
                         break;
                     }
 
@@ -191,7 +249,8 @@ export function activate(context: vscode.ExtensionContext) {
         const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
             if (e.document === editor.document) {
                 const newData = parseMarkdown(e.document.getText());
-                panel.webview.postMessage({ command: 'update', data: filterColumns(newData, currentFilter) });
+                const filtered = filterColumns(newData, currentFilter);
+                panel.webview.postMessage({ command: 'update', data: filtered, ganttHtml: renderGanttHtml(filtered) });
             }
         });
 
@@ -369,6 +428,18 @@ function getWebviewContent(columns: any[]) {
     <head>
         <style>
             body { display: flex; gap: 20px; font-family: sans-serif; background: #222; color: white; padding: 20px; flex-wrap: wrap; box-sizing: border-box; }
+            .gantt-section { width: 100%; min-width: 0; padding-bottom: 14px; border-bottom: 1px solid #555; }
+            .gantt-section h2 { margin: 0 0 10px; font-size: 1.1em; }
+            .gantt-scroll { overflow-x: auto; }
+            .gantt-chart { min-width: max-content; }
+            .gantt-row { display: grid; grid-template-columns: 220px var(--timeline-width); min-height: 34px; }
+            .gantt-task-label { overflow: hidden; padding: 8px 10px 8px 0; text-overflow: ellipsis; white-space: nowrap; }
+            .gantt-track { position: relative; display: grid; grid-template-columns: repeat(var(--day-count), 44px); }
+            .gantt-header { min-height: 30px; color: #aaa; font-size: 0.8em; }
+            .gantt-header .gantt-task-label { font-weight: bold; }
+            .gantt-day { box-sizing: border-box; padding: 7px 0; border-left: 1px solid #444; text-align: center; }
+            .gantt-bar { position: absolute; top: 7px; bottom: 7px; min-width: 3px; border-radius: 3px; background: #1685b8; }
+            .gantt-empty { margin: 8px 0; color: #aaa; }
             .column { box-sizing: border-box; flex: 1 1 0; background: #333; padding: 10px; border-radius: 8px; min-width: 0; transition: background 0.2s, flex-basis 0.2s; }
             .column-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
             .column-title { display: flex; align-items: center; gap: 15px; }
@@ -407,6 +478,10 @@ function getWebviewContent(columns: any[]) {
         </style>
     </head>
     <body>
+        <section class="gantt-section">
+            <h2>Planning</h2>
+            <div id="gantt-container" class="gantt-scroll">${renderGanttHtml(columns)}</div>
+        </section>
         <div class="toolbar">
             <button class="filter-button" onclick="filterTasks()">🔎</button>
         </div>
@@ -631,8 +706,13 @@ function getWebviewContent(columns: any[]) {
                 const message = event.data;
                 if (message.command === 'update') {
                     updateUI(message.data); 
+                    updateGantt(message.ganttHtml);
                 }
             });
+
+            function updateGantt(html) {
+                document.getElementById('gantt-container').innerHTML = html;
+            }
 
             function updateUI(columns) {
                 const container = document.getElementById('kanban-container');
