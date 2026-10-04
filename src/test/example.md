@@ -10,7 +10,7 @@ My personal TODO list.
 - [ ] Test Inter vs Roboto 2026-10-01
 
 ### ⚡ Today  
-- [ ] Do something @me ~5h 2026-10-20
+- [ ] Do something @me ~5h 2026-10-15
 - [ ] Configure the GitHub repository ~8h #dev @me 2026-10-04 $50%
 - [ ] Choose the font #style 2026-09-30 @me
 

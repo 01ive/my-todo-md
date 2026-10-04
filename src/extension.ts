@@ -115,7 +115,8 @@ function renderGanttHtml(columns: Column[]): string {
     const dayCount = Math.ceil((rangeEnd - rangeStart) / ganttDayMs);
     const dates = Array.from({ length: dayCount }, (_, index) => {
         const date = new Date(rangeStart + index * ganttDayMs);
-        return `<div class="gantt-day">${date.toISOString().slice(5, 10)}</div>`;
+        const isoDate = date.toISOString().slice(0, 10);
+        return `<div class="gantt-day" data-date="${isoDate}">${isoDate.slice(5)}</div>`;
     }).join('');
     const rows = tasks.map(task => {
         const left = ((task.start - rangeStart) / (dayCount * ganttDayMs)) * 100;
@@ -450,6 +451,7 @@ function getWebviewContent(columns: any[]) {
             .gantt-header { min-height: 30px; color: #aaa; font-size: 0.8em; }
             .gantt-header .gantt-task-label { font-weight: bold; }
             .gantt-day { box-sizing: border-box; padding: 7px 0; border-left: 1px solid #444; text-align: center; }
+            .gantt-day.today { font-weight: bold; color: #fff; }
             .gantt-bar { position: absolute; top: 7px; bottom: 7px; min-width: 3px; border-radius: 3px; background: #1685b8; }
             .gantt-bar.overdue { background: #ff5252; }
             .gantt-empty { margin: 8px 0; color: #aaa; }
@@ -491,8 +493,8 @@ function getWebviewContent(columns: any[]) {
         </style>
     </head>
     <body>
-        <section class="gantt-section">
-            <h2><button class="planning-toggle" type="button" aria-expanded="true" aria-controls="gantt-container" onclick="togglePlanning(this)">Planning</button></h2>
+        <section class="gantt-section collapsed">
+            <h2><button class="planning-toggle" type="button" aria-expanded="false" aria-controls="gantt-container" onclick="togglePlanning(this)">Planning</button></h2>
             <div id="gantt-container" class="gantt-scroll">${renderGanttHtml(columns)}</div>
         </section>
         <div class="toolbar">
@@ -741,6 +743,10 @@ function getWebviewContent(columns: any[]) {
                 document.querySelectorAll('.gantt-bar[data-date]').forEach(bar => {
                     const date = bar.getAttribute('data-date');
                     bar.classList.toggle('overdue', Boolean(date) && date < today);
+                });
+
+                document.querySelectorAll('.gantt-day[data-date]').forEach(day => {
+                    day.classList.toggle('today', day.getAttribute('data-date') === today);
                 });
             }
 
