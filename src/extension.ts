@@ -294,7 +294,8 @@ function getWebviewContent(columns: any[]) {
              oncontextmenu="handleTaskClick(event, ${t.line})"
              draggable="true" 
              ondragstart="drag(event)" 
-             data-line="${t.line}">
+               data-line="${t.line}"
+               data-date="${t.date || ''}">
             ${t.priority === 1 ? '<span class="priority"> 🟡 </span>' : ''}
             ${t.priority === 2 ? '<span class="priority"> 🟠 </span>' : ''}
             ${t.priority === 3 ? '<span class="priority"> 🔴 </span>' : ''}
@@ -345,6 +346,8 @@ function getWebviewContent(columns: any[]) {
             .column.drag-over { background: #444; border: 2px dashed #007acc; }
             .task { background: #444; margin: 10px 0; padding: 10px; border-radius: 4px; border-left: 4px solid #007acc; cursor: grab; }
             .task:active { cursor: grabbing; }
+            .task.deadline-overdue { outline: 1px solid #ff5252; outline-offset: -1px; }
+            .task.deadline-today { outline: 1px solid #ffeb3b; outline-offset: -1px; }
             .task.done { opacity: 0.6; border-left-color: #4caf50; text-decoration: line-through; color: #888; }
             .task.standby { opacity: 0.6; border-left-color: #fffb00; style: italic; }
             .tag { color: #ffab40; font-size: 0.8em; margin-left: 5px; }
@@ -404,6 +407,17 @@ function getWebviewContent(columns: any[]) {
                 if (mins > 0) parts.push(mins + 'm');
                 
                 return parts.join(' ');
+            }
+
+            function updateDeadlineStyles() {
+                const now = new Date();
+                const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+                document.querySelectorAll('.task[data-date]').forEach(task => {
+                    const date = task.getAttribute('data-date');
+                    task.classList.toggle('deadline-overdue', Boolean(date) && date < today);
+                    task.classList.toggle('deadline-today', Boolean(date) && date === today);
+                });
             }
 
             // Fonction pour calculer la durée totale d'une colonne
@@ -515,7 +529,7 @@ function getWebviewContent(columns: any[]) {
 
                     col.tasks.forEach(t => {
                         const statusClass = t.status || 'todo';
-                        html += '<div class="task ' + statusClass + '" draggable="true" ondragstart="drag(event)" data-line="' + t.line + '" onclick="handleTaskClick(event, ' + t.line + ')" oncontextmenu="handleTaskClick(event, ' + t.line + ')">';
+                        html += '<div class="task ' + statusClass + '" draggable="true" ondragstart="drag(event)" data-line="' + t.line + '" data-date="' + (t.date || '') + '" onclick="handleTaskClick(event, ' + t.line + ')" oncontextmenu="handleTaskClick(event, ' + t.line + ')">';
                         if (t.priority === 1) html += '<span class="priority"> ' + '🟡 ' + '</span>';
                         if (t.priority === 2) html += '<span class="priority"> ' + '🟠 ' + '</span>';
                         if (t.priority === 3) html += '<span class="priority"> ' + '🔴 ' + '</span>';
@@ -535,7 +549,11 @@ function getWebviewContent(columns: any[]) {
                 });
                 
                 container.innerHTML = html;
+                updateDeadlineStyles();
             }
+
+            updateDeadlineStyles();
+            setInterval(updateDeadlineStyles, 60 * 1000);
         </script>
     </body>
     </html>`;
