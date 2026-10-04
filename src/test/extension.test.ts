@@ -87,4 +87,15 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(ganttTasks[2].progress, 0.25);
 		assert.strictEqual(ganttTasks[3].progress, 0.25);
 	});
+
+	test('preserves standby status for Gantt bars', () => {
+		const columns = parseMarkdown([
+			'### Work',
+			'- [/] Waiting task ~1d 2026-10-02'
+		].join('\n'));
+		const ganttTasks = buildGanttTasks(columns, new Date(2026, 9, 4));
+
+		assert.strictEqual(ganttTasks[0].status, 'standby');
+		assert.strictEqual(ganttTasks[0].overdue, true);
+	});
 });

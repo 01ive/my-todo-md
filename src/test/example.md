@@ -15,7 +15,7 @@ My personal TODO list.
 - [ ] Choose the font #style 2026-09-30 @me ~1d $2d
 
 ### ⏳ Standby
-- [/] Organise meeting with designers #design @me ~5m 2026-12-01
+- [ ] Organise meeting with designers #design @me ~5m 2026-12-01
 - [/] Mock up the home page #design @me ~2d
 
 ### ✅ Done

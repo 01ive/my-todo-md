@@ -67,7 +67,7 @@ function calculateColumnSpentTotal(tasks: Task[]): string {
 
 const ganttDayMs = 24 * 60 * 60 * 1000;
 
-export function buildGanttTasks(columns: Column[], now = new Date()): { title: string; line: number; start: number; end: number; overdue: boolean; progress: number }[] {
+export function buildGanttTasks(columns: Column[], now = new Date()): { title: string; line: number; status: Task['status']; start: number; end: number; overdue: boolean; progress: number }[] {
     const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
     return columns.flatMap(column => column.tasks.flatMap(task => {
@@ -92,7 +92,7 @@ export function buildGanttTasks(columns: Column[], now = new Date()): { title: s
             return [];
         }
 
-        return [{ title: task.title, line: task.line, start: end - durationDays * ganttDayMs, end, overdue: end - ganttDayMs < today, progress }];
+        return [{ title: task.title, line: task.line, status: task.status, start: end - durationDays * ganttDayMs, end, overdue: end - ganttDayMs < today, progress }];
     }));
 }
 
@@ -124,7 +124,7 @@ function renderGanttHtml(columns: Column[]): string {
         const left = ((task.start - rangeStart) / (dayCount * ganttDayMs)) * 100;
         const width = ((task.end - task.start) / (dayCount * ganttDayMs)) * 100;
         const dueDate = new Date(task.end - ganttDayMs).toISOString().slice(0, 10);
-        const barClass = task.overdue ? 'gantt-bar overdue' : 'gantt-bar';
+        const barClass = task.status === 'standby' ? 'gantt-bar standby' : task.overdue ? 'gantt-bar overdue' : 'gantt-bar';
         return `<div class="gantt-row"><div class="gantt-task-label" title="${escapeHtml(task.title)}" onclick="handleGanttTaskClick(event, ${task.line})">${escapeHtml(task.title)}</div><div class="gantt-track"><div class="${barClass}" data-date="${dueDate}" style="left:${left}%;width:${width}%" onclick="handleGanttTaskClick(event, ${task.line})"><div class="gantt-progress" aria-hidden="true" style="width:${task.progress * 100}%"></div></div></div></div>`;
     }).join('');
 
@@ -456,6 +456,7 @@ function getWebviewContent(columns: any[]) {
             .gantt-day.today { font-weight: bold; color: #fff; }
             .gantt-bar { position: absolute; top: 7px; bottom: 7px; min-width: 3px; border-radius: 3px; background: #1685b8; }
             .gantt-bar.overdue { background: #ff5252; }
+            .gantt-bar.standby { background: #ffeb3b; }
             .gantt-progress { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: #4caf50; pointer-events: none; }
             .gantt-empty { margin: 8px 0; color: #aaa; }
             .column { box-sizing: border-box; flex: 1 1 0; background: #333; padding: 10px; border-radius: 8px; min-width: 0; transition: background 0.2s, flex-basis 0.2s; }
