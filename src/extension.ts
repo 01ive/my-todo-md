@@ -447,8 +447,8 @@ function getWebviewContent(columns: any[]) {
             .gantt-section.collapsed #gantt-container { display: none; }
             .gantt-scroll { overflow-x: auto; }
             .gantt-chart { min-width: max-content; }
-            .gantt-row { display: grid; grid-template-columns: 220px var(--timeline-width); min-height: 34px; }
-            .gantt-task-label { overflow: hidden; padding: 8px 10px 8px 0; text-overflow: ellipsis; white-space: nowrap; }
+            .gantt-row { display: grid; grid-template-columns: 220px var(--timeline-width); min-height: 8px; }
+            .gantt-task-label { overflow: hidden; padding: 4px 8px 4px 0; text-overflow: ellipsis; white-space: nowrap; }
             .gantt-track { position: relative; display: grid; grid-template-columns: repeat(var(--day-count), 44px); }
             .gantt-header { min-height: 30px; color: #aaa; font-size: 0.8em; }
             .gantt-header .gantt-task-label { font-weight: bold; }
@@ -498,7 +498,7 @@ function getWebviewContent(columns: any[]) {
     </head>
     <body>
         <section class="gantt-section collapsed">
-            <h2><button class="planning-toggle" type="button" aria-expanded="false" aria-controls="gantt-container" onclick="togglePlanning(this)">Planning</button></h2>
+            <h2><button class="planning-toggle" type="button" aria-expanded="false" aria-controls="gantt-container" onclick="togglePlanning(this)">🗓️ Planning</button></h2>
             <div id="gantt-container" class="gantt-scroll">${renderGanttHtml(columns)}</div>
         </section>
         <div class="toolbar">
