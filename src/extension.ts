@@ -67,7 +67,7 @@ function calculateColumnSpentTotal(tasks: Task[]): string {
 
 const ganttDayMs = 24 * 60 * 60 * 1000;
 
-export function buildGanttTasks(columns: Column[], now = new Date()): { title: string; start: number; end: number; overdue: boolean }[] {
+export function buildGanttTasks(columns: Column[], now = new Date()): { title: string; start: number; end: number; overdue: boolean; progress: number }[] {
     const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
     return columns.flatMap(column => column.tasks.flatMap(task => {
@@ -80,8 +80,10 @@ export function buildGanttTasks(columns: Column[], now = new Date()): { title: s
             return [];
         }
 
-        const estimatedDays = task.estimate ? parseDuration(task.estimate) / (8 * 60) : 0;
+        const estimatedMinutes = task.estimate ? parseDuration(task.estimate) : 0;
+        const estimatedDays = estimatedMinutes / (8 * 60);
         const durationDays = estimatedDays > 0 ? estimatedDays : 1;
+        const progress = Math.min(getTaskSpentMinutes(task) / (estimatedMinutes || 8 * 60), 1);
         const end = Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])) + ganttDayMs;
         const dueDate = new Date(end - ganttDayMs);
         if (dueDate.getUTCFullYear() !== Number(dateMatch[1]) ||
@@ -90,7 +92,7 @@ export function buildGanttTasks(columns: Column[], now = new Date()): { title: s
             return [];
         }
 
-        return [{ title: task.title, start: end - durationDays * ganttDayMs, end, overdue: end - ganttDayMs < today }];
+        return [{ title: task.title, start: end - durationDays * ganttDayMs, end, overdue: end - ganttDayMs < today, progress }];
     }));
 }
 
@@ -123,7 +125,7 @@ function renderGanttHtml(columns: Column[]): string {
         const width = ((task.end - task.start) / (dayCount * ganttDayMs)) * 100;
         const dueDate = new Date(task.end - ganttDayMs).toISOString().slice(0, 10);
         const barClass = task.overdue ? 'gantt-bar overdue' : 'gantt-bar';
-        return `<div class="gantt-row"><div class="gantt-task-label" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</div><div class="gantt-track"><div class="${barClass}" data-date="${dueDate}" style="left:${left}%;width:${width}%"></div></div></div>`;
+        return `<div class="gantt-row"><div class="gantt-task-label" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</div><div class="gantt-track"><div class="${barClass}" data-date="${dueDate}" style="left:${left}%;width:${width}%"><div class="gantt-progress" aria-hidden="true" style="width:${task.progress * 100}%"></div></div></div></div>`;
     }).join('');
 
     return `<div class="gantt-chart" style="--day-count:${dayCount};--timeline-width:${dayCount * 44}px"><div class="gantt-row gantt-header"><div class="gantt-task-label">Tâche</div><div class="gantt-track">${dates}</div></div>${rows}</div>`;
@@ -454,6 +456,7 @@ function getWebviewContent(columns: any[]) {
             .gantt-day.today { font-weight: bold; color: #fff; }
             .gantt-bar { position: absolute; top: 7px; bottom: 7px; min-width: 3px; border-radius: 3px; background: #1685b8; }
             .gantt-bar.overdue { background: #ff5252; }
+            .gantt-progress { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: #4caf50; pointer-events: none; }
             .gantt-empty { margin: 8px 0; color: #aaa; }
             .column { box-sizing: border-box; flex: 1 1 0; background: #333; padding: 10px; border-radius: 8px; min-width: 0; transition: background 0.2s, flex-basis 0.2s; }
             .column-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

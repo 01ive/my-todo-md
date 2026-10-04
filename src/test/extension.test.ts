@@ -70,4 +70,20 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(ganttTasks[1].end - ganttTasks[1].start, 24 * 60 * 60 * 1000);
 			assert.strictEqual(ganttTasks[2].overdue, false);
 	});
+
+	test('calculates Gantt progress from spent time', () => {
+		const columns = parseMarkdown([
+			'### Work',
+			'- [ ] Half complete ~4h $2h 2026-10-10',
+			'- [ ] Above estimate ~4h $6h 2026-10-10',
+			'- [ ] Percent fallback ~4h $25% 2026-10-10',
+			'- [ ] No estimate $2h 2026-10-10'
+		].join('\n'));
+		const ganttTasks = buildGanttTasks(columns, new Date(2026, 9, 4));
+
+		assert.strictEqual(ganttTasks[0].progress, 0.5);
+		assert.strictEqual(ganttTasks[1].progress, 1);
+		assert.strictEqual(ganttTasks[2].progress, 0.25);
+		assert.strictEqual(ganttTasks[3].progress, 0.25);
+	});
 });
