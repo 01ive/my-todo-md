@@ -49,6 +49,7 @@ suite('Extension Test Suite', () => {
 		const ganttTasks = buildGanttTasks(columns);
 
 		assert.deepStrictEqual(ganttTasks.map(task => task.title), ['Longer task', 'Parallel task']);
+		assert.deepStrictEqual(ganttTasks.map(task => task.line), [1, 2]);
 		assert.strictEqual(new Date(ganttTasks[0].start).toISOString(), '2026-10-09T00:00:00.000Z');
 		assert.strictEqual(new Date(ganttTasks[1].start).toISOString(), '2026-10-10T00:00:00.000Z');
 		assert.strictEqual(ganttTasks[0].end, ganttTasks[1].end);
