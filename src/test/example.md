@@ -6,12 +6,12 @@ My personal TODO list.
 - [ ] Test Inter vs Roboto 2026-10-01
 
 ### Todo
-- [ ] Choose the font #style 2026-05-15 @me
+- [/] Check readability on mobile 2026-10-04 ~4h #metier $80%
+- [ ] Integrate the responsive header ~4h $2h
 
 ### ⚡ Today  
-- [/] Check readability on mobile 2026-10-04 ~4h #metier $50%
-- [ ] Integrate the responsive header ~4h $2h
 - [ ] Configure the GitHub repository ~8h #dev @me 2026-10-04 $50%
+- [ ] Choose the font #style 2026-05-15 @me
 
 ### ⏳ Standby
 - [/] Organise meeting with designers #design @me ~5m

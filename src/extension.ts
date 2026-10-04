@@ -146,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                     case 'move':
                         // On passe l'URI à moveTask pour qu'il soit autonome
-                        await moveTask(targetDocUri, message.line, message.targetColumn);
+                        await moveTask(targetDocUri, message.line, message.targetColumn, message.targetLine, message.insertAfter);
                         break;
 
                     case 'filter': {
@@ -266,41 +266,59 @@ async function editTask(docUri: vscode.Uri, lineIndex: number) {
 }
 
 // Fonction Helper pour déplacer le texte
-async function moveTask(docUri: vscode.Uri, lineIndex: number, targetColumn: string) {
+async function moveTask(docUri: vscode.Uri, lineIndex: number, targetColumn: string, targetLine?: number, insertAfter = false) {
     const doc = await vscode.workspace.openTextDocument(docUri);
     
-    // 1. Identifier le bloc (tâche + lignes indentées)
-    let endLine = lineIndex;
-    while (endLine + 1 < doc.lineCount && 
-          (doc.lineAt(endLine + 1).text.startsWith('  ') || doc.lineAt(endLine + 1).text.startsWith('\t'))) {
-        endLine++;
-    }
+    const findTaskEndLine = (startLine: number) => {
+        let endLine = startLine;
+        while (endLine + 1 < doc.lineCount &&
+              (doc.lineAt(endLine + 1).text.startsWith('  ') || doc.lineAt(endLine + 1).text.startsWith('\t'))) {
+            endLine++;
+        }
+        return endLine;
+    };
+
+    const endLine = findTaskEndLine(lineIndex);
     
     const rangeToRemove = new vscode.Range(new vscode.Position(lineIndex, 0), new vscode.Position(endLine + 1, 0));
     const taskContent = doc.getText(rangeToRemove);
 
-    // 2. Trouver la colonne cible
-    let destLine = -1;
+    let destinationHeadingLine = -1;
     for (let i = 0; i < doc.lineCount; i++) {
         const text = doc.lineAt(i).text;
-        if (text.startsWith('###') && text.toLowerCase().includes(targetColumn.toLowerCase())) {
-            destLine = i;
+        if (text.startsWith('###') && text.replace('###', '').trim().toLowerCase() === targetColumn.toLowerCase()) {
+            destinationHeadingLine = i;
             break;
         }
     }
 
-    if (destLine !== -1) {
-        const edit = new vscode.WorkspaceEdit();
-        // Pour éviter les problèmes d'index qui changent :
-        // Si on déplace vers le bas, on insère d'abord puis on supprime.
-        // Si on déplace vers le haut, c'est l'inverse. 
-        // Le plus simple : faire deux edits séparés ou gérer les positions.
-        const insertPos = new vscode.Position(destLine + 1, 0);
-        edit.insert(docUri, insertPos, taskContent);
-        edit.delete(docUri, rangeToRemove);
-        
-        await applyEditAndSave(docUri, edit);
+    if (destinationHeadingLine === -1) {
+        return;
     }
+
+    let insertLine = destinationHeadingLine + 1;
+    if (targetLine !== undefined && targetLine !== null && targetLine >= 0 && targetLine < doc.lineCount) {
+        if (targetLine >= lineIndex && targetLine <= endLine) {
+            return;
+        }
+        insertLine = insertAfter ? findTaskEndLine(targetLine) + 1 : targetLine;
+    } else {
+        for (let i = destinationHeadingLine + 1; i < doc.lineCount && !doc.lineAt(i).text.startsWith('###'); i++) {
+            if (doc.lineAt(i).text.trim().startsWith('- [')) {
+                insertLine = findTaskEndLine(i) + 1;
+                i = insertLine - 1;
+            }
+        }
+    }
+
+    if (insertLine === lineIndex || insertLine === endLine + 1) {
+        return;
+    }
+
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(docUri, new vscode.Position(insertLine, 0), taskContent);
+    edit.delete(docUri, rangeToRemove);
+    await applyEditAndSave(docUri, edit);
 }
 
 function getWebviewContent(columns: any[]) {
@@ -587,14 +605,26 @@ function getWebviewContent(columns: any[]) {
 				
 				const line = ev.dataTransfer.getData("line");
 				const targetColumn = columnElt.getAttribute("data-column");
+                const targetElement = ev.target instanceof Element ? ev.target : null;
+                const targetTask = targetElement ? targetElement.closest('.task') : null;
+                let targetLine = null;
+                let insertAfter = false;
 
-				if (line && targetColumn) {
-					vscode.postMessage({ 
-						command: 'move', 
-						line: parseInt(line), 
-						targetColumn: targetColumn 
-					});
-				}
+                if (targetTask && columnElt.contains(targetTask)) {
+                    targetLine = Number(targetTask.getAttribute('data-line'));
+                    const bounds = targetTask.getBoundingClientRect();
+                    insertAfter = ev.clientY >= bounds.top + bounds.height / 2;
+                }
+
+                if (line !== '' && targetColumn) {
+                    vscode.postMessage({
+                        command: 'move',
+                        line: parseInt(line),
+                        targetColumn: targetColumn,
+                        targetLine: targetLine,
+                        insertAfter: insertAfter
+                    });
+                }
 			}
 
             window.addEventListener('message', event => {
