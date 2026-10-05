@@ -493,7 +493,7 @@ function getWebviewContent(columns: any[]) {
             .column.collapsed .meta,
             .column.collapsed .priority { display: none; }
             .column.collapsed .task { min-width: 0; }
-            .column.collapsed .task strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .column.collapsed .task strong { display: block; max-width: 15ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         </style>
     </head>
     <body>

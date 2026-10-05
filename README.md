@@ -115,6 +115,10 @@ Initial release of **my-todo.md**:
 
 - 🗓️ Add planning view.
 
+### 0.0.9
+
+- Limit task name width in column compact view.
+
 ---
 
 ## Following extension guidelines
